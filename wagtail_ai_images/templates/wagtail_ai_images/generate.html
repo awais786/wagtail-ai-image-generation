@@ -1,0 +1,87 @@
+{% extends "wagtailadmin/base.html" %}
+{% load i18n static %}
+
+{% block titletag %}{% trans "Generate AI Image" %}{% endblock %}
+
+{% block content %}
+<div class="nice-padding">
+
+    <header class="w-header">
+        <div class="w-header__wrapper">
+            <div class="w-header__title">
+                <span class="w-header__glyph icon icon-image" aria-hidden="true"></span>
+                <h1 class="w-header__title-text">{% trans "Generate AI Image" %}</h1>
+            </div>
+        </div>
+    </header>
+
+    <form id="ai-generate-form" method="post" novalidate>
+        {% csrf_token %}
+
+        <div class="w-field__wrapper">
+            <label class="w-field__label" for="id_prompt">
+                {% trans "Describe the image you want to generate" %}
+            </label>
+            <div class="w-field">
+                <div class="w-field__input">
+                    <textarea
+                        id="id_prompt"
+                        name="prompt"
+                        rows="4"
+                        maxlength="{{ max_prompt_length }}"
+                        placeholder="{% trans "e.g. A serene mountain landscape at sunrise, photorealistic" %}"
+                        required
+                    ></textarea>
+                </div>
+                <p class="help">
+                    {% blocktrans with max=max_prompt_length %}Maximum {{ max }} characters.{% endblocktrans %}
+                    {% if provider_name %}({{ provider_name }}){% endif %}
+                </p>
+            </div>
+        </div>
+
+        <div style="margin-top: 1rem;">
+            <button type="submit" id="ai-generate-btn" class="button button-longrunning">
+                <span class="button__text">{% trans "Generate Image" %}</span>
+            </button>
+        </div>
+    </form>
+
+    {# Status area — hidden until JS updates it #}
+    <div id="ai-generate-status" aria-live="polite" style="display:none; margin-top: 1.5rem;">
+
+        <div id="ai-generate-loading" style="display:none;">
+            <span class="icon icon-spinner" aria-hidden="true"></span>
+            {% trans "Generating image, please wait…" %}
+        </div>
+
+        <div id="ai-generate-error" role="alert" style="display:none;">
+            <div class="w-field__errors">
+                <p class="error-message" id="ai-generate-error-text"></p>
+            </div>
+        </div>
+
+        <div id="ai-generate-result" style="display:none;">
+            <h2>{% trans "Generated Image" %}</h2>
+            <img
+                id="ai-generate-preview"
+                src=""
+                alt=""
+                style="max-width: 512px; width: 100%; border: 1px solid #d9d9d9; border-radius: 4px; margin-top: 0.75rem; display: block;"
+            />
+            <p style="margin-top: 0.75rem;">
+                <a id="ai-generate-library-link" href="#" target="_blank" rel="noopener">
+                    {% trans "View in image library →" %}
+                </a>
+            </p>
+        </div>
+
+    </div>
+
+</div>
+{% endblock %}
+
+{% block extra_js %}
+{{ block.super }}
+<script src="{% static 'wagtail_ai_images/js/generate.js' %}"></script>
+{% endblock %}
