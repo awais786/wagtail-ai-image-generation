@@ -24,6 +24,7 @@ Config key: WAGTAIL_AI_IMAGES["PROVIDERS"]["custom"]
 from __future__ import annotations
 
 import base64
+import binascii
 import os
 from typing import Any
 
@@ -141,7 +142,12 @@ class CustomProvider(ImageProvider):
             ) from exc
 
         if image_format == "base64":
-            return base64.b64decode(image_data)
+            try:
+                return base64.b64decode(image_data)
+            except (TypeError, binascii.Error) as exc:
+                raise GenerationError(
+                    f"Failed to decode base64 image data: {exc}"
+                ) from exc
 
         if image_format == "url":
             try:
@@ -155,7 +161,21 @@ class CustomProvider(ImageProvider):
                 ) from exc
 
         if image_format == "bytes":
-            return bytes(image_data) if not isinstance(image_data, bytes) else image_data
+            if isinstance(image_data, bytes):
+                return image_data
+            if isinstance(image_data, bytearray):
+                return bytes(image_data)
+            if isinstance(image_data, list) and all(isinstance(b, int) for b in image_data):
+                try:
+                    return bytes(image_data)
+                except (TypeError, ValueError) as exc:
+                    raise GenerationError(
+                        f"Invalid byte values in IMAGE_FORMAT='bytes' payload: {exc}"
+                    ) from exc
+            raise GenerationError(
+                "Unsupported IMAGE_FORMAT='bytes' payload type: "
+                f"{type(image_data).__name__}. Expected bytes, bytearray, or list[int]."
+            )
 
         raise ConfigurationError(
             f"Unknown IMAGE_FORMAT '{image_format}'. "

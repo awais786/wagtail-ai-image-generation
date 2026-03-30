@@ -34,28 +34,41 @@ class WagtailAiImagesConfig(AppConfig):
 
         # Providers that always register (httpx is a core dependency).
         from .providers.stability import StabilityProvider
-        from .providers.azure_openai import AzureOpenAIProvider
         from .providers.custom import CustomProvider
 
         register_provider("stability", StabilityProvider)
-        register_provider("azure_openai", AzureOpenAIProvider)
         register_provider("custom", CustomProvider)
 
-        # Providers that require optional SDK extras.
-        try:
-            from .providers.openai import OpenAIProvider
+        # openai and azure_openai both require the optional openai SDK extra.
+        # Their modules catch ImportError internally and set _openai_sdk = None,
+        # so the class import always succeeds — check the sentinel instead.
+        from .providers import openai as openai_module
+        from .providers.openai import OpenAIProvider
 
+        if getattr(openai_module, "_openai_sdk", None) is not None:
             register_provider("openai", OpenAIProvider)
-        except ImportError:
+        else:
             logger.debug(
                 "ai_images.startup: openai SDK not installed; 'openai' provider unavailable."
             )
 
-        try:
-            from .providers.google import GoogleProvider
+        from .providers import azure_openai as azure_openai_module
+        from .providers.azure_openai import AzureOpenAIProvider
 
+        if getattr(azure_openai_module, "_openai_sdk", None) is not None:
+            register_provider("azure_openai", AzureOpenAIProvider)
+        else:
+            logger.debug(
+                "ai_images.startup: openai SDK not installed; 'azure_openai' provider unavailable."
+            )
+
+        # google provider catches ImportError internally and sets google = None.
+        from .providers import google as google_module
+        from .providers.google import GoogleProvider
+
+        if getattr(google_module, "google", None) is not None:
             register_provider("google", GoogleProvider)
-        except ImportError:
+        else:
             logger.debug(
                 "ai_images.startup: google-auth not installed; 'google' provider unavailable."
             )

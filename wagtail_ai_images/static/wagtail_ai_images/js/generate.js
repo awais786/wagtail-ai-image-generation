@@ -50,7 +50,7 @@
   function showResult(data) {
     previewImg.src = data.image_url;
     previewImg.alt = data.image_title || "AI Generated Image";
-    libraryLink.href = "/admin/images/" + data.image_id + "/";
+    libraryLink.href = data.image_edit_url;
     resultDiv.style.display = "block";
     loadingDiv.style.display = "none";
   }
@@ -75,16 +75,35 @@
       },
     })
       .then(function (response) {
-        return response.json().then(function (data) {
-          return { ok: response.ok, status: response.status, data: data };
+        var contentType = response.headers.get("Content-Type") || "";
+        if (contentType.indexOf("application/json") !== -1) {
+          return response
+            .json()
+            .then(function (data) {
+              return { ok: response.ok, status: response.status, data: data };
+            })
+            .catch(function () {
+              return {
+                ok: response.ok,
+                status: response.status,
+                data: { success: false, error: "The server returned an invalid response. Please try again." },
+              };
+            });
+        }
+        return response.text().then(function (text) {
+          return {
+            ok: response.ok,
+            status: response.status,
+            data: { success: false, error: text.trim().slice(0, 500) || "An unexpected error occurred. Please try again." },
+          };
         });
       })
       .then(function (result) {
         setLoading(false);
-        if (result.data.success) {
+        if (result.data && result.data.success) {
           showResult(result.data);
         } else {
-          showError(result.data.error || "An unexpected error occurred. Please try again.");
+          showError((result.data && result.data.error) || "An unexpected error occurred. Please try again.");
         }
       })
       .catch(function (err) {

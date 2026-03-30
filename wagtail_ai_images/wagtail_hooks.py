@@ -6,6 +6,7 @@ Phase 1 registers:
   - A sidebar menu item so users can discover the feature
 """
 from django.urls import path
+from django.utils.translation import gettext_lazy as _
 from wagtail import hooks
 from wagtail.admin.menu import MenuItem
 
@@ -28,7 +29,7 @@ def register_ai_images_menu_item():
     from django.urls import reverse
 
     return MenuItem(
-        label="Generate Image",
+        label=_("Generate Image"),
         url=reverse("wagtail_ai_images_generate"),
         icon_name="image",
         order=10000,

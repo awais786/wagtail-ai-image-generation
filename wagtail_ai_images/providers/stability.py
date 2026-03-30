@@ -20,6 +20,7 @@ import httpx
 from .base import ImageProvider, ProviderCapabilities
 from ..exceptions import (
     AuthenticationError,
+    ConfigurationError,
     GenerationError,
     InvalidPromptError,
     ProviderUnavailableError,
@@ -65,7 +66,12 @@ class StabilityProvider(ImageProvider):
         size = size or self.config.get("DEFAULT_SIZE", "1024x1024")
         timeout = self.config.get("TIMEOUT_SECONDS", 60)
 
-        width, height = (int(d) for d in size.split("x"))
+        try:
+            width, height = (int(d) for d in size.split("x"))
+        except ValueError:
+            raise ConfigurationError(
+                f"Invalid size '{size}': expected format 'WxH' (e.g. '1024x1024')."
+            )
 
         text_prompts = [{"text": prompt, "weight": 1}]
         if kwargs.get("negative_prompt"):

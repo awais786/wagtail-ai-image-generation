@@ -158,11 +158,11 @@ Phase 2 adds `AIGeneratedImage` (one-to-one with `Image`) storing prompt, provid
 |---|---|---|
 | `openai` | OpenAI DALL·E 3 | `openai` Python SDK |
 | `stability` | Stability AI SDXL/SD3 | `httpx` (REST) |
-| `google` | Google Imagen / Vertex AI | `google-cloud-aiplatform` |
+| `google` | Google Imagen / Vertex AI | `google-auth` + `httpx` (REST) |
 | `azure_openai` | Azure OpenAI DALL·E | `openai` SDK with Azure config |
 | `custom` | Any REST API | `httpx` with configurable request/response mapping |
 
-Install only the SDKs you need via extras, e.g. `pip install wagtail-ai-images[openai]`. The `custom` and `azure_openai` providers have no extra SDK dependency.
+Install only the SDKs you need via extras, e.g. `pip install wagtail-ai-images[openai]`. The `custom` provider has no extra SDK dependency. The `azure_openai` provider reuses the `[openai]` extra (no separate Azure-specific extra is required, but the `openai` SDK must be installed).
 
 ---
 

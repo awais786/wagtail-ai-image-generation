@@ -61,6 +61,11 @@ class GenerateImageView(LoginRequiredMixin, View):
         # ENABLED check runs before the permission check so that disabling the
         # feature returns 403 even for users who hold add_image.
         if not _settings().get("ENABLED", True):
+            if request.method == "POST":
+                return JsonResponse(
+                    {"success": False, "error": "AI image generation is disabled."},
+                    status=403,
+                )
             return HttpResponseForbidden("AI image generation is disabled.")
         return super().dispatch(request, *args, **kwargs)
 
@@ -116,32 +121,47 @@ class GenerateImageView(LoginRequiredMixin, View):
         if denied:
             return JsonResponse({"success": False, "error": "Permission denied."}, status=403)
 
+        from django.urls import reverse
+
         from .exceptions import AuthenticationError, ProviderError
 
         ai_settings = _settings()
         provider_name = ai_settings.get("PROVIDER", "openai")
-        max_length = ai_settings.get("MAX_PROMPT_LENGTH", 1000)
+        settings_max_length = ai_settings.get("MAX_PROMPT_LENGTH", 1000)
         collection_name = ai_settings.get("DEFAULT_COLLECTION", "AI Generated")
 
-        # --- server-side prompt validation ---
+        # --- server-side prompt validation (empty check before provider call) ---
         prompt = request.POST.get("prompt", "").strip()
         if not prompt:
             return JsonResponse({"success": False, "error": "Prompt is required."}, status=400)
-        if len(prompt) > max_length:
-            return JsonResponse(
-                {"success": False, "error": f"Prompt exceeds {max_length} characters."},
-                status=400,
-            )
 
         start = time.monotonic()
         try:
             provider = get_provider(provider_name)
             capabilities = provider.get_capabilities()
 
+            # Enforce the tighter of the settings limit and the provider's own limit.
+            effective_max = min(settings_max_length, capabilities.max_prompt_length)
+            if len(prompt) > effective_max:
+                return JsonResponse(
+                    {"success": False, "error": f"Prompt exceeds {effective_max} characters."},
+                    status=400,
+                )
+
             # Use the provider's configured default size/style for v0.1.
             # Size/style selectors in the UI are a v0.2 feature.
             provider_config = ai_settings.get("PROVIDERS", {}).get(provider_name, {})
             size = provider_config.get("DEFAULT_SIZE") or capabilities.supported_sizes[0]
+            if size not in capabilities.supported_sizes:
+                logger.warning(
+                    "ai_images.generate: DEFAULT_SIZE '%s' not in supported sizes %s for provider '%s'; "
+                    "falling back to '%s'.",
+                    size,
+                    capabilities.supported_sizes,
+                    provider_name,
+                    capabilities.supported_sizes[0],
+                )
+                size = capabilities.supported_sizes[0]
             style = provider_config.get("DEFAULT_STYLE")
             if style and (
                 capabilities.supported_styles is None
@@ -183,5 +203,6 @@ class GenerateImageView(LoginRequiredMixin, View):
                 "image_id": image.pk,
                 "image_url": image.file.url,
                 "image_title": image.title,
+                "image_edit_url": reverse("wagtailimages:edit", args=[image.pk]),
             }
         )

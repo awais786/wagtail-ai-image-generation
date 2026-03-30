@@ -25,9 +25,9 @@ def get_or_create_collection(name: str):
     """
     from wagtail.models import Collection
 
-    collection = Collection.objects.filter(name=name).first()
+    root = Collection.get_first_root_node()
+    collection = Collection.objects.filter(name=name, depth=root.depth + 1).first()
     if collection is None:
-        root = Collection.get_first_root_node()
         collection = root.add_child(name=name)
     return collection
 
